@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Data.SqlClient;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -23,7 +24,7 @@ namespace ExcelDBEntegrasyonProj
             Excel.Range range;
             for (int i = 0; i < basliklar.Length; i++)
             {
-                range = ws1.Cells[1, (1+i)];
+                range = ws1.Cells[1, (1 + i)];
                 range.Value2 = basliklar[i];
             }
 
@@ -58,16 +59,91 @@ namespace ExcelDBEntegrasyonProj
                     satir++;
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 MessageBox.Show("Sql query sýrasýnda bir hata oluþtu, Hata Kodu: SQLREAD01 \n" + ex.ToString());
             }
-            finally 
-            { 
+            finally
+            {
                 if (connection != null)
-                { 
+                {
                     connection.Close();
                 }
+            }
+        }
+
+        private void btnExceldenOku_Click(object sender, EventArgs e)
+        {
+            Excel.Application exlApp;
+            Excel.Workbook exlWorkbook;
+            Excel.Worksheet exlWorksheet;
+            Excel.Range range;
+            int rCnt = 0;
+            int cCnt = 0;
+            exlApp = new Excel.Application();
+            exlWorkbook = exlApp.Workbooks.Open("C:\\test\\test.xlsx");
+            exlWorksheet = (Excel.Worksheet)exlWorkbook.Worksheets.get_Item(1);
+            range = exlWorksheet.UsedRange;
+
+            // Ýlk olarak richTextBox2 içeriðini temizleyelim.
+            richTextBox2.Clear();
+
+            // Ýlk satýr baþlýklarý içerdiði için row Count (rCnt)' u 2'den baþlatmamýz gerekiyor.
+            // Eðer ilk satýrda veriler baþlamýþ olsaydý 1 ' den baþlatmamýz gerekirdi.
+            for (rCnt = 2; rCnt <= range.Rows.Count; rCnt++)
+            {
+                ArrayList list = new ArrayList();
+                for(cCnt = 1;  cCnt <= range.Columns.Count; cCnt++)
+                {
+                    string okunanHucre = Convert.ToString((range.Cells[rCnt, cCnt] as Excel.Range).Value2);
+                    richTextBox2.Text = richTextBox2.Text + okunanHucre + " ";
+                    list.Add(okunanHucre);
+                }
+                richTextBox2.Text = richTextBox2.Text + "\n";
+
+                try 
+                { 
+                    connection.Open();
+                    SqlCommand cmd = new SqlCommand("INSERT INTO Personel (PersonelNo, Ad, Soyad, Semt, Sehir)" 
+                                                    + "VALUES (@P1, @P2, @P3, @P4, @P5)", connection);
+                    cmd.Parameters.AddWithValue("@P1", list[0]);
+                    cmd.Parameters.AddWithValue("@P2", list[1]);
+                    cmd.Parameters.AddWithValue("@P3", list[2]);
+                    cmd.Parameters.AddWithValue("@P4", list[3]);
+                    cmd.Parameters.AddWithValue("@P5", list[4]);
+                    cmd.ExecuteNonQuery();
+
+                } 
+                catch (Exception ex) 
+                {
+                    MessageBox.Show("Veritabanýna yazarken hata oluþtu! Hata kodu: SQLWRITE01\n" + ex.ToString());
+                }
+                finally 
+                {
+                    if (connection != null)
+                        connection.Close(); 
+                }
+            }
+            exlApp.Quit();
+            RelaseObject(exlWorksheet);
+            RelaseObject(exlWorkbook);
+            RelaseObject(exlApp);
+        }
+
+        private void RelaseObject(object obj)
+        {
+            try
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(obj);
+                obj = null;
+            }
+            catch (Exception ex)
+            {
+                obj = null;
+            }
+            finally
+            {
+                GC.Collect();
             }
         }
     }
